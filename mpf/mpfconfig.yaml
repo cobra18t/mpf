@@ -115,6 +115,7 @@ mpf:
         lisy: mpf.platforms.lisy.lisy.LisyHardwarePlatform
         openpixel: mpf.platforms.openpixel.OpenpixelHardwarePlatform
         opp: mpf.platforms.opp.opp.OppHardwarePlatform
+        copperhead: mpf.platforms.copperhead.copperhead.CopperheadHardwarePlatform
         p_roc:  mpf.platforms.p_roc.PRocHardwarePlatform
         p3_roc:  mpf.platforms.p3_roc.P3RocHardwarePlatform
         pkone: mpf.platforms.pkone.pkone.PKONEHardwarePlatform

@@ -1,0 +1,147 @@
+#config_version=6
+
+hardware:
+    platform: copperhead, virtual
+
+copperhead:
+    ports: com1
+    baud: 115200
+    poll_hz: 10
+    response_timeout_ms: 500ms
+    spi_functions:
+        - board: 20
+          function: 8c16s
+          allocation: next_spi0
+        - board: 20
+          function: switch_matrix
+          allocation: next_spi1
+        - board: 20
+          function: lamp_matrix
+          allocation: next_spi0
+        - board: 20
+          function: motor_board
+          allocation: next_spi0
+
+playfields:
+    playfield:
+        default_source_device: test_trough
+        tags: default
+
+ball_devices:
+    test_trough:
+        ball_switches: s_virtual_trough
+        eject_coil: c_virtual_eject
+        tags: trough, drain, home
+
+switches:
+    s_virtual_trough:
+        number: virtual_trough
+        platform: virtual
+    s_copperhead:
+        number: 20-18
+    s_copperhead_eos:
+        number: 20-19
+
+coils:
+    c_virtual_eject:
+        number: virtual_eject
+        platform: virtual
+    c_copperhead:
+        number: 20-8
+        default_pulse_ms: 32
+        default_hold_power: 0.25
+    c_iflip:
+        number: 20-12
+        default_pulse_power: 0.5
+        default_hold_power: 0.25
+        platform_settings:
+            iflip: true
+            iflip_analog_input: 20-40
+            iflip_eos_start_count: 8
+    c_iflip_eos:
+        number: 20-13
+        default_pulse_ms: 25
+        default_pulse_power: 0.4
+        default_hold_power: 0.2
+        platform_settings:
+            iflip: true
+            iflip_analog_input: 20-41
+            recycle: 2
+    c_iflip_dual:
+        number: 20-14
+        default_pulse_ms: 20
+        default_pulse_power: 0.6
+        platform_settings:
+            iflip: true
+            iflip_analog_input: 20-42
+            recycle: 1
+    c_iflip_dual_eos:
+        number: 20-15
+        default_pulse_ms: 32
+        default_pulse_power: 0.5
+        platform_settings:
+            iflip: true
+            iflip_analog_input: 20-43
+            recycle: 2
+    c_flipper_hold:
+        number: 20-9
+        default_pulse_ms: 10
+        default_pulse_power: 0.5
+        default_hold_power: 0.25
+
+flippers:
+    f_single_iflip:
+        activation_switch: s_copperhead
+        main_coil: c_iflip
+    f_single_iflip_eos:
+        activation_switch: s_copperhead
+        eos_switch: s_copperhead_eos
+        main_coil: c_iflip_eos
+        use_eos: true
+        repulse_on_eos_open: false
+    f_dual_iflip:
+        activation_switch: s_copperhead
+        main_coil: c_iflip_dual
+        hold_coil: c_flipper_hold
+        hold_coil_overwrite:
+            pulse_ms: 12
+            pulse_power: 0.75
+    f_dual_iflip_eos:
+        activation_switch: s_copperhead
+        eos_switch: s_copperhead_eos
+        main_coil: c_iflip_dual_eos
+        hold_coil: c_copperhead
+        use_eos: true
+        repulse_on_eos_open: true
+        eos_active_ms_before_repulse: 65ms
+
+lights:
+    l_matrix:
+        number: 20-0
+        subtype: matrix
+    l_neopixel:
+        number: 20-0-1
+    l_neopixel_64_boundary:
+        number: 20-1-63
+    l_neopixel_256_boundary:
+        number: 20-2-255
+
+servos:
+    servo_test:
+        number: 20-17
+        reset_position: 0.5
+        speed_limit: 0.1
+
+steppers:
+    stepper_test:
+        number: 20-0
+        home_on_startup: false
+        platform_settings:
+            home_switch: 20-18
+            microstep: 2
+            current_limit: 50
+
+dc_motors:
+    motor_test:
+        number: 20-0
+        default_power: 0.5

@@ -1101,6 +1101,34 @@ opp:
     file_log: single|enum(none,basic,full)|basic
     poll_hz: single|int|100
     incand_update_hz: single|int|25
+copperhead:
+    __valid_in__: machine
+    __type__: config
+    ports: list|str|
+    baud: single|int|115200
+    poll_hz: single|int(1,1000)|100
+    response_timeout_ms: single|ms|500ms
+    spi_functions: list|subconfig(copperhead_spi_function)|None
+    debug: single|bool|false
+    console_log: single|enum(none,basic,full)|none
+    file_log: single|enum(none,basic,full)|basic
+copperhead_coils:
+    iflip: single|bool|false
+    high_speed: single|bool|false
+    recycle: single|int(0,7)|0
+    iflip_analog_input: single|str|None
+    iflip_eos_start_count: single|int(0,255)|255
+copperhead_steppers:
+    home_switch: single|str|
+    microstep: single|int(0,3)|0
+    current_limit: single|int(0,127)|0
+    acceleration: single|int(0,7)|7
+copperhead_spi_function:
+    board: single|int|
+    function: single|enum(motor_board,switch_matrix,lamp_matrix,8c16s,16s)|
+    allocation: single|enum(explicit,next_spi0,next_spi1)|explicit
+    start_a: single|int(0,31)|31
+    start_b: single|int(0,31)|31
 open_pixel_control:
     __valid_in__: machine
     __type__: config

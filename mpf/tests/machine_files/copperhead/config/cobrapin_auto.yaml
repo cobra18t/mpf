@@ -1,0 +1,24 @@
+#config_version=6
+hardware:
+    platform: copperhead
+copperhead:
+    ports: com1, com2
+    response_timeout_ms: 50ms
+digital_outputs:
+    cobrapin_42_relay_30:
+        enable_events: relay_on
+        disable_events: relay_off
+
+switches:
+    s_profile:
+        number: 42-4
+coils:
+    c_profile_normal:
+        number: 42-4
+        default_pulse_ms: 30
+    c_profile_iflip:
+        number: 42-20
+        default_pulse_ms: 30
+        platform_settings:
+            iflip: true
+            iflip_analog_input: 42-40

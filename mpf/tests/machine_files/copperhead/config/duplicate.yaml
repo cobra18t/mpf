@@ -1,0 +1,8 @@
+#config_version=6
+
+hardware:
+    platform: copperhead
+
+copperhead:
+    ports: com1, com2
+    response_timeout_ms: 50ms

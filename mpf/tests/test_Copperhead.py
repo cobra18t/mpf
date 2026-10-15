@@ -2,6 +2,7 @@
 
 import asyncio
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from serial import SerialException
 
@@ -111,7 +112,7 @@ class MockCopperheadSerial(MockSerial):
                 raise AssertionError("Incomplete Copperhead request")
             command = Command(data[1])
             if command == self.fail_write_command:
-                raise OSError("injected Copperhead USB write failure")
+                raise SerialException("injected Copperhead USB write failure")
             length = (9 + int.from_bytes(data[4:6], "big")
                       if command == Command.INTERPOLATE else REQUEST_LENGTHS[command])
             message, data = data[:length], data[length:]
@@ -173,6 +174,21 @@ class MockCopperheadSerial(MockSerial):
             self._enqueue_response(response)
 
 
+def prepare_copperhead_loop(loop):
+    """Service ready mock serial I/O before advancing virtual-time deadlines."""
+    run_once = loop._run_once
+
+    def run_ready_io_first():
+        # POSIX serial transports use selector callbacks. TimeTravelLoop would
+        # otherwise jump to the next timer before servicing those callbacks.
+        if not loop._ready and any(
+                (mask & key.events) for key, mask in loop._selector.select(0)):
+            loop.call_soon(lambda: None)
+        run_once()
+
+    loop._run_once = run_ready_io_first
+
+
 class TestCopperhead(MpfTestCase):
     """Exercise Copperhead through MPF's mocked serial event loop."""
 
@@ -186,6 +202,7 @@ class TestCopperhead(MpfTestCase):
         return False
 
     def _mock_loop(self):
+        prepare_copperhead_loop(self.loop)
         self.clock.mock_serial("com1", self.serial)
 
     def setUp(self):
@@ -305,6 +322,7 @@ class TestCopperhead(MpfTestCase):
         hardware.home("clockwise")
         hardware.stop()
         hardware.move_rel_pos(-10)
+        self.advance_time_and_run(.001)
 
         commands = [message for message in self.serial.messages
                     if message[1] == Command.STEPPER_COMMAND]
@@ -333,6 +351,7 @@ class TestCopperhead(MpfTestCase):
 
         platform.set_pulse_on_hit_and_enable_and_release_and_disable_rule(
             enable_switch, eos_switch, coil, repulse)
+        self.advance_time_and_run(.001)
 
         self.assertTrue(platform.features["hardware_eos_repulse"])
         solenoid_config = next(
@@ -345,7 +364,9 @@ class TestCopperhead(MpfTestCase):
         self.assertEqual(bytes((0xCC, 40, 19, 8)), eos_config[2:6])
 
         platform.clear_hw_rule(enable_switch, coil)
+        self.advance_time_and_run(.001)
         platform.clear_hw_rule(eos_switch, coil)
+        self.advance_time_and_run(.001)
         eos_configs = [message for message in self.serial.messages
                        if message[1] == Command.SET_IFLIP_INPUT]
         self.assertEqual(bytes((12, 40, 255, 8)), eos_configs[-1][2:6])
@@ -367,8 +388,11 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         platform.set_pulse_on_hit_rule(first_switch, coil)
+        self.advance_time_and_run(.001)
         platform.set_pulse_on_hit_rule(second_switch, coil)
+        self.advance_time_and_run(.001)
         platform.set_pulse_on_hit_rule(first_switch, coil)
+        self.advance_time_and_run(.001)
 
         associations = [message for message in self.serial.messages
                         if message[1] == Command.SOLENOID_INPUT]
@@ -380,6 +404,7 @@ class TestCopperhead(MpfTestCase):
 
         self.serial.messages.clear()
         platform.clear_hw_rule(first_switch, coil)
+        self.advance_time_and_run(.001)
         self.assertEqual({19}, driver.switch_addresses)
         self.assertIsNotNone(driver.switch_rule)
         self.assertEqual(
@@ -391,6 +416,7 @@ class TestCopperhead(MpfTestCase):
 
         self.serial.messages.clear()
         platform.clear_hw_rule(second_switch, coil)
+        self.advance_time_and_run(.001)
         self.assertFalse(driver.switch_addresses)
         self.assertIsNone(driver.switch_rule)
         self.assertEqual(
@@ -407,6 +433,7 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         flipper.enable()
+        self.advance_time_and_run(.001)
 
         configs = [message for message in self.serial.messages
                    if message[1] == Command.CONFIGURE_SOLENOID and message[2] == 12]
@@ -420,6 +447,7 @@ class TestCopperhead(MpfTestCase):
                              for message in self.serial.messages))
 
         flipper.disable()
+        self.advance_time_and_run(.001)
         self.assertIn(bytes((18, 0x8c)), [message[2:4] for message in self.serial.messages
                                          if message[1] == Command.SOLENOID_INPUT])
 
@@ -428,6 +456,7 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         flipper.enable()
+        self.advance_time_and_run(.001)
 
         eos = next(message for message in self.serial.messages
                    if message[1] == Command.SET_IFLIP_INPUT)
@@ -438,6 +467,7 @@ class TestCopperhead(MpfTestCase):
         self.assertEqual(102, config[6])
 
         flipper.disable()
+        self.advance_time_and_run(.001)
         eos = [message for message in self.serial.messages
                if message[1] == Command.SET_IFLIP_INPUT][-1]
         self.assertEqual(bytes((13, 41, 255, 255)), eos[2:6])
@@ -450,6 +480,7 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         flipper.enable()
+        self.advance_time_and_run(.001)
 
         associations = [message[2:4] for message in self.serial.messages
                         if message[1] == Command.SOLENOID_INPUT]
@@ -467,6 +498,7 @@ class TestCopperhead(MpfTestCase):
                              for message in self.serial.messages))
 
         flipper.disable()
+        self.advance_time_and_run(.001)
         removals = [message[2:4] for message in self.serial.messages
                     if message[1] == Command.SOLENOID_INPUT and message[3] & 0x80]
         self.assertIn(bytes((18, 0x8e)), removals)
@@ -477,6 +509,7 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         flipper.enable()
+        self.advance_time_and_run(.001)
 
         associations = [message[2:4] for message in self.serial.messages
                         if message[1] == Command.SOLENOID_INPUT]
@@ -491,6 +524,7 @@ class TestCopperhead(MpfTestCase):
         self.assertEqual(128, main[6])
 
         flipper.disable()
+        self.advance_time_and_run(.001)
         eos = [message for message in self.serial.messages
                if message[1] == Command.SET_IFLIP_INPUT][-1]
         self.assertEqual(bytes((15, 43, 255, 255)), eos[2:6])
@@ -522,12 +556,14 @@ class TestCopperhead(MpfTestCase):
 
                     platform.set_pulse_on_hit_and_enable_and_release_and_disable_rule(
                         enable_switch, eos_switch, coil, repulse)
+                    self.advance_time_and_run(.001)
                     configured = next(
                         message for message in self.serial.messages
                         if message[1] == Command.CONFIGURE_SOLENOID)
                     self.assertEqual(expected, configured[3] & 0x07)
 
                     platform.clear_hw_rule(enable_switch, coil)
+                    self.advance_time_and_run(.001)
                     restored = [message for message in self.serial.messages
                                 if message[1] == Command.CONFIGURE_SOLENOID][-1]
                     self.assertEqual(base_recycle, restored[3] & 0x07)
@@ -540,12 +576,14 @@ class TestCopperhead(MpfTestCase):
         self.serial.messages.clear()
 
         motor.reverse_pulse(.02, .25)
+        self.advance_time_and_run(.001)
         config = next(message for message in self.serial.messages
                       if message[1] == Command.CONFIGURE_SOLENOID)
         self.assertEqual(55, config[2])
         self.assertEqual(bytes((0x22, 32, 32, 32)), config[3:7])
         self.assertIn(55, platform._spi_commands[20])
         motor.stop()
+        self.advance_time_and_run(.001)
         self.assertNotIn(54, platform._spi_commands[20])
         self.assertNotIn(55, platform._spi_commands[20])
 
@@ -596,7 +634,21 @@ class TestCopperhead(MpfTestCase):
 
     def test_runtime_write_failure_stops_mpf(self):
         self.serial.fail_write_command = Command.READ_INPUTS
-        self.advance_time_and_run(.2)
+        report_exception = self.loop.call_exception_handler
+        transport_errors = []
+
+        def capture_write_failure(context):
+            error = context.get("exception")
+            if isinstance(error, SerialException) and "injected Copperhead USB write failure" in str(error):
+                transport_errors.append(error)
+            else:
+                report_exception(context)
+
+        # serial_asyncio reports a transport write error to the loop as well
+        # as delivering it to the reader; capture only this expected report.
+        with patch.object(self.loop, "call_exception_handler", capture_write_failure):
+            self.advance_time_and_run(.2)
+        self.assertEqual(1, len(transport_errors))
         self.assertTrue(self.machine.stop_future.done())
         self.assertIn("injected Copperhead USB write failure", self.machine.stop_future.result())
 
@@ -705,7 +757,8 @@ class TestCopperhead(MpfTestCase):
         platform = self.machine.hardware_platforms["copperhead"]
         self.serial.drop_command = Command.GET_STATUS
         platform.stop()
-        self.advance_time_and_run(.91)
+        # Allow the poller one interval to exit before the 0.9s shutdown deadline.
+        self.advance_time_and_run(1 / platform.config["poll_hz"] + .91)
         self.assertTrue(platform._shutdown_task.done())
         self.assertFalse(platform.serial_connections)
 
@@ -768,6 +821,7 @@ class TestCopperheadStartupErrors(MpfTestCase):
         return False
 
     def _mock_loop(self):
+        prepare_copperhead_loop(self.loop)
         self.clock.mock_serial("com1", self.serial)
 
     def setUp(self):
@@ -817,6 +871,7 @@ class TestCopperheadDuplicateBoards(MpfTestCase):
         return False
 
     def _mock_loop(self):
+        prepare_copperhead_loop(self.loop)
         self.clock.mock_serial("com1", self.serial1)
         self.clock.mock_serial("com2", self.serial2)
 
@@ -844,6 +899,7 @@ class TestCobraPinAutomaticOutputs(MpfTestCase):
         return False
 
     def _mock_loop(self):
+        prepare_copperhead_loop(self.loop)
         self.clock.mock_serial("com1", self.serial1)
         self.clock.mock_serial("com2", self.serial2)
 
@@ -901,6 +957,7 @@ class TestCobraPinAutomaticOutputs(MpfTestCase):
         platform = self.machine.hardware_platforms["copperhead"]
         for suffix in ("power_enable", "relay_30", "relay_31"):
             self.machine.digital_outputs["cobrapin_42_" + suffix].enable()
+            self.advance_time_and_run(.001)
         self.assertEqual({28, 30, 31}, platform._spi_commands[42])
         platform.stop()
         self.advance_time_and_run(.1)

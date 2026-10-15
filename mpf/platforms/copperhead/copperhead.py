@@ -19,8 +19,10 @@ from mpf.platforms.copperhead.copperhead_stepper import CopperheadStepper
 from mpf.platforms.copperhead.copperhead_switch import CopperheadSwitch
 
 
+# pylint: disable-next=too-many-instance-attributes
 class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform, ServoPlatform,
                                  StepperPlatform, MotorPlatform):
+
     """Copperhead switch and solenoid platform."""
 
     __slots__ = ["config", "connections", "serial_connections", "switches", "drivers",
@@ -50,6 +52,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
     MULTI_FUNCTIONS = {0x00: "switch", 0x40: "neopixel", 0x80: "servo", 0xc0: "i2c"}
 
     def __init__(self, machine):
+        """Initialize the Copperhead interface and its runtime state."""
         super().__init__(machine)
         self.features["tickless"] = True
         self.features["allow_empty_numbers"] = False
@@ -132,6 +135,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         self._shutdown_task = self.machine.clock.loop.create_task(
             self._async_shutdown(poll_tasks))
 
+    # pylint: disable-next=too-many-locals
     async def _async_shutdown(self, poll_tasks):
         """Flush safe output state before closing Copperhead USB ports."""
         self._pending_interpolation = {}
@@ -399,6 +403,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         return board, address, self.connections[board]
 
     def configure_switch(self, number, config, platform_config):
+        """Configure a flattened Copperhead switch input."""
         del platform_config
         board, address, connection = self._parse_number(number, 255)
         if address < 48 and (connection.wings[address // 4] != 1 or
@@ -427,6 +432,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         return switch
 
     async def get_hw_switch_states(self):
+        """Return the current states of all Copperhead inputs."""
         for connection in self.serial_connections:
             await self._read_switches(connection, notify=False)
         return dict(self.switch_states)
@@ -436,7 +442,9 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         """Return Copperhead-specific coil settings."""
         return "copperhead_coils"
 
+    # pylint: disable-next=too-many-locals
     def configure_driver(self, config, number, platform_settings):
+        """Configure a Copperhead solenoid output."""
         board, address, connection = self._parse_number(number, 127)
         if (connection.hardware_model, connection.hardware_revision) == (1, (3, 0)):
             suffix = {28: "power_enable", 30: "relay_30", 31: "relay_31"}.get(address)
@@ -528,6 +536,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         first = pixel * 3
         return [{"number": "{}-{}-{}".format(board, output, first + channel)} for channel in range(3)]
 
+    # pylint: disable-next=too-many-locals
     def configure_light(self, number, subtype, config, platform_settings):
         """Configure one matrix or NeoPixel byte channel."""
         del config, platform_settings
@@ -664,8 +673,10 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
     def _power(value, maximum=127):
         return max(0, min(maximum, round(float(value or 0) * maximum)))
 
+    # pylint: disable-next=too-many-arguments
     def configure_solenoid(self, driver, pulse_settings, hold_settings, auto_clear, can_cancel,
                            delay_ms=None, recycle_override=None):
+        """Send the pulse, hold, and hardware rule configuration for a solenoid."""
         pulse_ms = driver.config.default_pulse_ms if pulse_settings is None else pulse_settings.duration
         pulse_power = driver.config.default_pulse_power if pulse_settings is None else pulse_settings.power
         hold_power = driver.config.default_hold_power if hold_settings is None else hold_settings.power
@@ -688,6 +699,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
                                       self._power(pulse_power, power_maximum)))
 
     def set_solenoid(self, driver, active, cache_after=None):
+        """Set a solenoid output and update its cached state."""
         values = self._gpio_commands if driver.address < 24 else self._spi_commands
         commanded = values[driver.connection.board_number]
         if active:
@@ -702,6 +714,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
         if cache_after is False:
             commanded.discard(driver.address)
 
+    # pylint: disable-next=too-many-arguments
     def _set_rule(self, enable_switch, coil, auto_clear, can_cancel, hold, delay_ms=None,
                   recycle_override=None):
         switch = enable_switch.hw_switch
@@ -717,6 +730,7 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
             driver.switch_addresses.add(switch.address)
 
     def clear_hw_rule(self, switch, coil):
+        """Remove a hardware switch rule from a solenoid."""
         hw_switch = switch.hw_switch
         driver = coil.hw_driver
         if hw_switch.address in driver.switch_addresses:
@@ -733,27 +747,36 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
             driver.disable()
 
     def set_pulse_on_hit_rule(self, enable_switch, coil):
+        """Pulse the coil when the enable switch activates."""
         self._set_rule(enable_switch, coil, auto_clear=True, can_cancel=False, hold=False)
 
     def set_delayed_pulse_on_hit_rule(self, enable_switch, coil, delay_ms):
+        """Pulse the coil after the configured switch delay."""
         if not 0 < delay_ms <= 255:
             raise AssertionError("Copperhead delayed pulse rules require a delay from 1 to 255ms")
         self._set_rule(enable_switch, coil, auto_clear=True, can_cancel=False, hold=False,
                        delay_ms=int(delay_ms))
 
     def set_pulse_on_hit_and_release_rule(self, enable_switch, coil):
+        """Pulse the coil until the enable switch releases."""
         self._set_rule(enable_switch, coil, auto_clear=True, can_cancel=True, hold=False)
 
     def set_pulse_on_hit_and_enable_and_release_rule(self, enable_switch, coil):
+        """Pulse and hold the coil until the enable switch releases."""
         self._set_rule(enable_switch, coil, auto_clear=False, can_cancel=True, hold=True)
 
     def set_pulse_on_hit_and_release_and_disable_rule(self, enable_switch, eos_switch, coil, repulse_settings):
+        """Pulse the coil with end-of-stroke cutoff."""
         self._set_eos_rule(enable_switch, eos_switch, coil, repulse_settings, hold=False)
 
+    # MPF hardware-rule interface requires these arguments.
+    # pylint: disable-next=too-many-arguments
     def set_pulse_on_hit_and_enable_and_release_and_disable_rule(self, enable_switch, eos_switch,
                                                                  coil, repulse_settings):
+        """Pulse and hold the coil with end-of-stroke cutoff."""
         self._set_eos_rule(enable_switch, eos_switch, coil, repulse_settings, hold=True)
 
+    # pylint: disable-next=too-many-arguments
     def _set_eos_rule(self, enable_switch, eos_switch, coil, repulse_settings, hold):
         driver = coil.hw_driver
         eos = eos_switch.hw_switch
@@ -800,8 +823,6 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
                         return
                 if not self._shutting_down:
                     await asyncio.sleep(interval)
-        except asyncio.CancelledError:
-            raise
         except (OSError, EOFError, TimeoutError, ValueError) as exc:
             if self._shutting_down:
                 return
@@ -825,7 +846,9 @@ class CopperheadHardwarePlatform(LightsPlatform, SwitchPlatform, DriverPlatform,
                     self.machine.switch_controller.process_switch_by_num(
                         state=state, num=key, platform=self)
 
+    # pylint: disable-next=too-many-locals,too-many-statements
     def get_info_string(self):
+        """Describe connected boards and their configured resources."""
         lines = ["Copperhead Hardware (read-only discovery)", "-----------------------------------------"]
         for board, connection in sorted(self.connections.items()):
             lines.extend(("", "Board {} — {} at {} baud".format(

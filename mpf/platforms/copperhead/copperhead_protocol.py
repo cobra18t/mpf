@@ -7,6 +7,7 @@ PREFIX = 0x20
 
 
 class Command(IntEnum):
+
     """Commands used by the first MPF integration milestone."""
 
     GET_BOARD_NUMBER = 0x00

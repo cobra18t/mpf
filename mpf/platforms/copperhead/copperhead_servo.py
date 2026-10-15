@@ -4,11 +4,13 @@ from mpf.platforms.interfaces.servo_platform_interface import ServoPlatformInter
 
 
 class CopperheadServo(ServoPlatformInterface):
+
     """An RC servo addressed by its physical GPIO."""
 
     __slots__ = ["platform", "connection", "gpio", "speed_limit", "current_position"]
 
     def __init__(self, platform, connection, gpio):
+        """Initialize the Copperhead interface and its runtime state."""
         self.platform = platform
         self.connection = connection
         self.gpio = gpio

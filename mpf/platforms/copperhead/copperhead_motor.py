@@ -7,11 +7,13 @@ from mpf.platforms.copperhead.copperhead_protocol import Command, packet
 
 
 class CopperheadDCMotor(MotorPlatformInterface):
+
     """One bidirectional motor driven by Motor Board output bits 6 and 7."""
 
     __slots__ = ["platform", "connection", "forward", "reverse", "_stop_handle"]
 
     def __init__(self, platform, connection, forward, reverse):
+        """Initialize the Copperhead interface and its runtime state."""
         self.platform = platform
         self.connection = connection
         self.forward = SimpleNamespace(connection=connection, address=forward)

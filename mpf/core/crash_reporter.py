@@ -24,7 +24,7 @@ def obr_repr(obj):
     """Return obj representation if possible."""
     try:
         return repr(obj)
-    # pylint: disable-msg=broad-except
+    # pylint: disable=broad-exception-caught
     except Exception as e:
         logging.error(e)
         return 'String Representation not found'
@@ -61,7 +61,7 @@ def string_variable_lookup(tb, s):
                 scope = getattr(scope, ref, ValueError)
             else:
                 scope = scope.get(ref, ValueError)
-        # pylint: disable-msg=broad-except
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             logging.error(e)
             scope = ValueError
@@ -192,7 +192,7 @@ def report_crash(e: BaseException, location, config):
     log = logging.getLogger("crash_reporter")
     try:
         trace = analyze_traceback(e.__traceback__)
-    # pylint: disable-msg=broad-except
+    # pylint: disable=broad-exception-caught
     except BaseException:
         log.exception(
             "Failed to generate crash report. Please report this in our forum!")

@@ -7,7 +7,9 @@ from mpf.platforms.interfaces.stepper_platform_interface import StepperPlatformI
 from mpf.platforms.copperhead.copperhead_protocol import Command, packet
 
 
+# pylint: disable-next=too-many-instance-attributes
 class CopperheadStepper(StepperPlatformInterface):
+
     """A dynamically indexed Copperhead Motor Board stepper."""
 
     __slots__ = ["platform", "connection", "index", "home_switch", "microstep", "current_limit",
@@ -15,7 +17,9 @@ class CopperheadStepper(StepperPlatformInterface):
                  "_move_start_position", "_segment_delta", "_segment_target",
                  "_segment_deadline"]
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, platform, connection, index, home_switch, microstep, current_limit, acceleration):
+        """Initialize the Copperhead interface and its runtime state."""
         self.platform = platform
         self.connection = connection
         self.index = index

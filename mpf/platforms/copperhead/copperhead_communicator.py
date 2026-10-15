@@ -2,12 +2,14 @@
 
 import asyncio
 
-from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE, SerialException
+from serial import EIGHTBITS, PARITY_NONE, STOPBITS_ONE
 
 from mpf.platforms.copperhead.copperhead_protocol import Command, RESPONSE_SIZES, packet, validate_response
 
 
+# pylint: disable-next=too-many-instance-attributes
 class CopperheadCommunicator:
+
     """Own one USB CDC connection and its request/response serialization."""
 
     __slots__ = ["platform", "machine", "port", "baud", "reader", "writer", "lock",
@@ -15,6 +17,7 @@ class CopperheadCommunicator:
                  "status", "fault", "hardware_model", "hardware_revision"]
 
     def __init__(self, platform, port, baud):
+        """Initialize the Copperhead interface and its runtime state."""
         self.platform = platform
         self.machine = platform.machine
         self.port = port
@@ -36,13 +39,10 @@ class CopperheadCommunicator:
         """Open, identify, and inspect this controller."""
         self.platform.log.info("Connecting to %s at %sbps", self.port, self.baud)
         self.platform.debug_log("Opening Copperhead serial port %s at %s baud", self.port, self.baud)
-        try:
-            connector = self.machine.clock.open_serial_connection(
-                url=self.port, baudrate=self.baud, limit=0, xonxoff=False,
-                bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE)
-            self.reader, self.writer = await connector
-        except SerialException:
-            raise
+        connector = self.machine.clock.open_serial_connection(
+            url=self.port, baudrate=self.baud, limit=0, xonxoff=False,
+            bytesize=EIGHTBITS, parity=PARITY_NONE, stopbits=STOPBITS_ONE)
+        self.reader, self.writer = await connector
 
         serial = self.writer.transport.serial
         serial.reset_input_buffer()
@@ -60,6 +60,8 @@ class CopperheadCommunicator:
             raise AssertionError("Copperhead firmware 0.0.0.13 or newer is required")
         self.wings = list(await self.transact(Command.GET_WING_CONFIG))
         self.multi_config = list(await self.transact(Command.GET_MULTI_CONFIG))
+        # The platform owns the shared firmware decoding routine.
+        # pylint: disable-next=protected-access
         self.neopixel_lengths = self.platform._decode_neopixel_lengths(self.multi_config)
         status = await self.transact(Command.GET_STATUS)
         self.status, self.fault = status
@@ -153,4 +155,5 @@ class CopperheadCommunicator:
             self.writer = None
 
     def __repr__(self):
+        """Return a description of this controller connection."""
         return "Copperhead {} on {}".format(self.board_number, self.port)

@@ -186,9 +186,8 @@ class ComboSwitch(SystemWideDevice, ModeDevice):
         self.delay.remove("switch_2_only")
 
         if self._switches_2_active:
-            if (self.config['max_offset_time'] >= 0 and
-                    (self._switches_1_active - self._switches_2_active >
-                        self.config['max_offset_time'])):
+            if (0 <= self.config['max_offset_time'] <
+                    self._switches_1_active - self._switches_2_active):
 
                 self.debug_log("Switches_2 is active, but the "
                                "max_offset_time=%s which is largest than when "
@@ -210,9 +209,8 @@ class ComboSwitch(SystemWideDevice, ModeDevice):
         self.delay.remove("switch_1_only")
 
         if self._switches_1_active:
-            if (self.config['max_offset_time'] >= 0 and
-                    (self._switches_2_active - self._switches_1_active >
-                        self.config['max_offset_time'])):
+            if (0 <= self.config['max_offset_time'] <
+                    self._switches_2_active - self._switches_1_active):
                 self.debug_log("Switches_2 is active, but the "
                                "max_offset_time=%s which is largest than when "
                                "a Switches_2 switch was first activated, so "

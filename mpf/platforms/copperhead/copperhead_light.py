@@ -4,11 +4,14 @@ from mpf.platforms.interfaces.light_platform_interface import LightPlatformInter
 
 
 class CopperheadLight(LightPlatformInterface):
+
     """One byte-valued Copperhead interpolation light channel."""
 
     __slots__ = ["platform", "connection", "address", "subtype", "output", "channel"]
 
+    # pylint: disable-next=too-many-arguments
     def __init__(self, number, platform, connection, address, subtype, output=None, channel=None):
+        """Initialize the Copperhead interface and its runtime state."""
         super().__init__(number)
         self.platform = platform
         self.connection = connection
@@ -42,6 +45,7 @@ class CopperheadLight(LightPlatformInterface):
         return "{}-{}-{}".format(self.connection.board_number, self.output, self.channel + 1)
 
     def __lt__(self, other):
+        """Compare channels by board and output address."""
         if not isinstance(other, CopperheadLight):
             return NotImplemented
         return (self.connection.board_number, self.address) < (other.connection.board_number, other.address)

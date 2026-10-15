@@ -227,7 +227,7 @@ class Command:
             logging.info("MPF run loop ended.")
             self.exit()
 
-        # pylint: disable-msg=broad-except
+        # pylint: disable=broad-exception-caught
         except Exception as e:
             self.exit(exception=e)
 

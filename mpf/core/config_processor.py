@@ -51,7 +51,7 @@ class ConfigProcessor:
             try:
                 data = pickle.load(f)   # type: Tuple[Any, Dict[str, Tuple[int, int]]]
             # unfortunately pickle can raise all kinds of exceptions and we dont want to crash on corrupted cache
-            # pylint: disable=broad-exception-caught
+            # pylint: disable-msg=broad-except
             except Exception:   # pragma: no cover
                 self.log.warning("Could not load cache file: %s", cache_file)
                 return None, None

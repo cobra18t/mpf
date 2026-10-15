@@ -203,7 +203,7 @@ class VirtualPinballPlatform(LightsPlatform, SwitchPlatform, DriverPlatform, Seg
             result = method(**kwargs)
             if inspect.iscoroutine(result):
                 result = await result
-        # pylint: disable=broad-exception-caught
+        # pylint: disable-msg=broad-except
         except Exception as e:
             self.machine.bcp.transport.send_to_client(client, "vpcom_bridge_response",
                                                       error="Exception: {}".format(e))

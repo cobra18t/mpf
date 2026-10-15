@@ -281,7 +281,7 @@ class BCPClientSocket(BaseBcpClient):
         """
         try:
             bcp_string = encode_command_string(bcp_command, **kwargs)
-        # pylint: disable=broad-exception-caught
+        # pylint: disable-msg=broad-except
         except Exception as e:
             self.warning_log("Failed to encode bcp_command %s with args %s. %s", bcp_command, kwargs, e)
             return
